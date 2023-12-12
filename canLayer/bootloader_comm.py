@@ -1,3 +1,4 @@
+#bootloader_comm.py
 import can
 CAN_NO_ANSWER             = 0x00
 CAN_NACK                  = 0x1F
@@ -35,6 +36,34 @@ def start_bootloader():
     else:     
         print("sBoot Error\n")        
         return False
+
+def chip_ID_response():
+    get_id_command = (GET_ID_COMMAND,0,0x00)
+    print("Configuring chipID ")
+    can_bus=config_can_bus()
+    send_can_message(can_bus, get_id_command)
+    device_answer=get_chip_answer(GET_ID_COMMAND,can_bus) #0x002#0x79
+    print(f"device answer: {device_answer}")
+    if device_answer == CAN_ACK:
+        print("Waiting Chip ID response ")
+        try:
+            receivedmessage = can_bus.recv(timeout=5.0)
+        except can.canError as e:
+            print(f"error of can{e}")
+            
+        else :
+            try:
+                addressZero = receivedmessage.data[0]
+                addressOne = receivedmessage.data[1] 
+                print(f"Chip ID: {addressZero},{addressOne}")
+                #print(f"Integer ID_value:{ord(addressZero)},{ord(addressOne)}")
+            except AttributeError as tye:
+                print(f"error of type error:{tye}")                 
+    elif device_answer == CAN_NACK:
+        print("Chip ID: NACK")
+    else:     
+        print("Chip ID: No Answer")
+    can_bus.shutdown()
     
 def config_can_bus():
     bus=can.Bus(interface='socketcan',
@@ -53,7 +82,7 @@ def send_can_message(can_bus, can_message):
 
 def get_chip_answer(can_ID, can_bus):       
     try:        
-     receivedmessage = can_bus.recv(timeout=10.0)     
+     receivedmessage = can_bus.recv(timeout=4.0)     
     except can.canError as e:
         print(f"error of can{e}")
         return CAN_NO_ANSWER
@@ -73,4 +102,5 @@ def get_chip_answer(can_ID, can_bus):
             print(f"error of type error:{tye}") 
             return CAN_NO_ANSWER
     finally:
-        print("end of get_chip_answer")
+        print(f"end of get_chip_answer: {can_ID}")
+
